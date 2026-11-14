@@ -53,6 +53,8 @@ sky-take-out
     ├── task               订单状态定时任务（计划改造为 MQ 延迟消息）
     ├── websocket          来单提醒 / 催单推送
     └── resources          配置、mapper XML、报表模板
+├── deploy        容器化部署：nginx 配置与前端产物 / RabbitMQ 延迟插件镜像 / 容器版配置（模板）
+└── doc           建库脚本 / 改造说明 / 部署说明（Dockerfile、docker-compose.yml 位于仓库根）
 ```
 
 ## 核心功能
@@ -85,7 +87,30 @@ sky-take-out
 
 - JDK 8+、Maven 3.x、MySQL 8.x、Redis、RabbitMQ（Docker 运行）、（管理端）nginx
 
-### 步骤
+### 方式一：Docker Compose 一键部署（推荐）
+
+环境要求：Docker Desktop（WSL2）。nginx、MySQL、Redis、RabbitMQ（含延迟插件）、后端全部容器化，数据落在 Docker 卷，日常启停各一条命令：
+
+```bash
+# 1. 打包后端 jar
+mvn clean package "-Dmaven.test.skip=true"
+
+# 2. 确认容器版配置 deploy/config/application-dev.yml 存在
+#    （该文件被 .gitignore 排除；生成方法与模板见 doc/部署说明.md）
+
+# 3. 一键构建并启动（首次需拉取镜像，约几分钟）
+docker compose up -d --build
+
+# 4. 冒烟验证
+#    管理端     http://localhost        （admin / 123456）
+#    接口文档   http://localhost:8080/doc.html
+#    MQ 控制台  http://localhost:15672  （sky / sky123456）
+```
+
+> 文件清单、原理讲解、改代码后的热更新流程、排错 FAQ 见 **[doc/部署说明.md](doc/部署说明.md)**。
+> 容器内 MySQL/Redis 端口未映射到宿主机（避免与本机原生服务冲突）；需用 Navicat 查看容器库时，在 compose 中临时补一条 `13306:3306` 映射即可。
+
+### 方式二：本地手动部署（开发调试）
 
 ```bash
 # 0. 启动 RabbitMQ 并启用延迟插件（订单超时取消依赖）
@@ -173,7 +198,7 @@ sky:
 | ✅ 基础缓存 | 店铺营业状态（RedisTemplate）；菜品/套餐查询基础缓存 | 已完成 | — |
 | ✅ 缓存三件套 | 统一 CacheClient 工具类：穿透（空值缓存）+ 击穿（互斥锁，另实现逻辑过期方案对比）；SCAN 替代 KEYS 清缓存 | 已完成（2026-11-14） | 待压测 |
 | ✅ MQ 延迟消息 | 订单超时取消由 Spring Task 轮询改为 RabbitMQ 延迟插件消息，监听器查库幂等校验 | 已完成（2026-11-14） | — |
-| 🔲 容器化部署 | Docker Compose 一键部署 nginx + MySQL + Redis + 后端 | 计划中 | — |
+| ✅ 容器化部署 | Docker Compose 一键部署 nginx + MySQL + Redis + RabbitMQ（延迟插件）+ 后端 | 已完成（2026-11-14，见 [doc/部署说明.md](doc/部署说明.md)） | `docker compose up -d` 一键启动；改代码后 `up -d --build backend` 热更新 |
 | 🔲 性能压测 | JMeter 对缓存改造前后接口压测对比 | 计划中 | — |
 
 > 各项改造的"为什么改、怎么改、原理对比"详见 [doc/改造说明.md](doc/改造说明.md)。

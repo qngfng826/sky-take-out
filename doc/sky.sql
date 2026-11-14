@@ -1,4 +1,7 @@
-CREATE DATABASE  IF NOT EXISTS `sky_take_out` ;
+-- 强制导入会话使用 utf8mb4：Docker initdb 导入时 mysql 客户端会话默认 latin1，
+-- 若不声明，UTF-8 中文会被逐字节双重编码入库（详见 doc/部署说明.md）
+SET NAMES utf8mb4;
+CREATE DATABASE  IF NOT EXISTS `sky_take_out` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 USE `sky_take_out`;
 
 DROP TABLE IF EXISTS `address_book`;
@@ -140,7 +143,7 @@ CREATE TABLE `employee` (
   UNIQUE KEY `idx_username` (`username`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin COMMENT='员工信息';
 
-INSERT INTO `employee` VALUES (1,'管理员','admin','123456','13812312312','1','110101199001010047',1,'2022-02-15 15:51:20','2022-02-17 09:16:20',10,1);
+INSERT INTO `employee` VALUES (1,'管理员','admin','e10adc3949ba59abbe56e057f20f883e','13812312312','1','110101199001010047',1,'2022-02-15 15:51:20','2022-02-17 09:16:20',10,1);
 
 DROP TABLE IF EXISTS `order_detail`;
 CREATE TABLE `order_detail` (

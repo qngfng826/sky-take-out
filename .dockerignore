@@ -1,0 +1,8 @@
+# 白名单模式：构建上下文只放行后端 fat jar，其余（.git、源码、课程资料等）一律排除
+# 注意：Docker 不支持“父目录被排除后再直接包含孙文件”，需逐级放行
+*
+!sky-server
+sky-server/*
+!sky-server/target
+sky-server/target/*
+!sky-server/target/*.jar
