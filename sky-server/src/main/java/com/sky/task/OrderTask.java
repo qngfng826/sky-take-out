@@ -12,6 +12,9 @@ import java.util.List;
 
 /**
  * 定时任务类
+ * 【改造②】"订单超时取消"已由 mq/OrderDelayListener（RabbitMQ 延迟消息）替代：
+ * 原每分钟轮询全表的方案存在超时判定误差大、订单量大时全表扫描压力大、无超时订单时也在空转等问题。
+ * 此处保留"配送中超时置完成"任务——它是对存量数据的兜底处理，不属于延迟语义。
  */
 @Slf4j
 @Component
@@ -19,27 +22,6 @@ public class OrderTask {
 
     @Autowired
     private OrderMapper orderMapper;
-
-    /**
-     * 处理超时订单
-     */
-    @Scheduled(cron = "0 * * * * ?") // 每分钟执行一次
-    public void processTimeoutOrders() {
-        log.info("定时处理超时订单：{}", LocalDateTime.now());
-
-        LocalDateTime time = LocalDateTime.now().plusMinutes(-15);
-
-        List<Orders> ordersList = orderMapper.getByStatusAndOrderTimeLT(Orders.PENDING_PAYMENT, time);
-
-        if (ordersList != null && ordersList.size() > 0) {
-            for (Orders orders : ordersList) {
-                orders.setStatus(Orders.CANCELLED);
-                orders.setCancelTime(LocalDateTime.now());
-                orders.setCancelReason("订单超时未支付，系统自动取消");
-                orderMapper.update(orders);
-            }
-        }
-    }
 
     /**
      * 处理一直处于配送中的订单

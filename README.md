@@ -12,7 +12,8 @@
 | ORM | MyBatis（XML + 注解） | 2.2.0 |
 | 数据库 | MySQL + Druid 连接池 | Druid 1.2.1 |
 | 分页 | PageHelper | 1.3.0 |
-| 缓存 | Redis（RedisTemplate + Spring Cache） | 随 SpringBoot |
+| 缓存 | Redis（自研 CacheClient：空值缓存防穿透 + 互斥锁防击穿） | 随 SpringBoot |
+| 消息队列 | RabbitMQ（延迟消息：订单超时自动取消） | 随 SpringBoot |
 | 认证 | JWT（jjwt） | 0.9.1 |
 | 实时通信 | WebSocket（来单提醒 / 催单） | 随 SpringBoot |
 | 接口文档 | Knife4j（Swagger） | 3.0.2 |
@@ -31,7 +32,9 @@ flowchart LR
     N -- "/user/" --> S
     N -- "/ws/ WebSocket" --> S
     S --> M[("MySQL")]
-    S --> R[("Redis<br/>营业状态/菜品/套餐缓存")]
+    S --> R[("Redis<br/>菜品/套餐缓存（CacheClient）")]
+    S --> MQ["RabbitMQ<br/>订单延迟取消消息"]
+    MQ -. "15 分钟后精准检查订单" .-> S
     S --> O["阿里云 OSS<br/>文件上传"]
     S -. "支付（mock）" .-> W["微信支付"]
     S -. "来单提醒 / 催单推送" .-> A["管理端 (WebSocket)"]
@@ -41,7 +44,7 @@ flowchart LR
 
 ```text
 sky-take-out
-├── sky-common    公共模块：常量 / 异常 / Result / JWT·OSS·微信支付工具 / ThreadLocal 上下文
+├── sky-common    公共模块：常量 / 异常 / Result / JWT·OSS·微信支付工具 / CacheClient 缓存工具 / ThreadLocal 上下文
 ├── sky-pojo      数据模型：Entity 11 个 / DTO 21 个 / VO 17 个
 └── sky-server    后端服务（:8080）
     ├── controller/admin   管理端接口（9 个 Controller）
@@ -80,11 +83,17 @@ sky-take-out
 
 ### 环境要求
 
-- JDK 8+、Maven 3.x、MySQL 8.x、Redis、（管理端）nginx
+- JDK 8+、Maven 3.x、MySQL 8.x、Redis、RabbitMQ（Docker 运行）、（管理端）nginx
 
 ### 步骤
 
 ```bash
+# 0. 启动 RabbitMQ 并启用延迟插件（订单超时取消依赖）
+docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3.13-management
+docker exec rabbitmq rabbitmq-plugins enable rabbitmq_delayed_message_exchange
+docker restart rabbitmq
+#    管理界面 http://localhost:15672（guest/guest）
+
 # 1. 建库（库名 sky_take_out，含示例数据）
 mysql -uroot -p < doc/sky.sql
 
@@ -109,6 +118,14 @@ front/nginx-1.20.2/nginx.exe
 字段名与 `application.yml` 中 `${sky.*}` 占位符一一对应，此文件被 `.gitignore` 排除，**需自行创建，切勿提交真实密钥**：
 
 ```yaml
+spring:
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: /
+
 sky:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -122,6 +139,8 @@ sky:
     port: 6379
     password: <Redis密码，无则留空>
     database: 10
+  order:
+    delay-seconds: 900  # 订单超时时长（秒）；本地测试 MQ 时可临时改为 10
   alioss:
     endpoint: oss-cn-<区域>.aliyuncs.com
     access-key-id: <你的OSS AK>
@@ -151,8 +170,10 @@ sky:
 
 | 改造项 | 内容 | 状态 | 效果记录 |
 |---|---|---|---|
-| ✅ 基础缓存 | 店铺营业状态（RedisTemplate）、菜品查询（RedisTemplate）、套餐查询（Spring Cache） | 已完成 | — |
-| 🔲 缓存三件套 | 统一 CacheClient 工具类，穿透（空值缓存）+ 击穿（互斥锁 / 逻辑过期）处理 | 计划中 | 待压测 |
-| 🔲 MQ 延迟消息 | 订单超时取消由 Spring Task 改为 RabbitMQ 延迟消息 | 计划中 | — |
+| ✅ 基础缓存 | 店铺营业状态（RedisTemplate）；菜品/套餐查询基础缓存 | 已完成 | — |
+| ✅ 缓存三件套 | 统一 CacheClient 工具类：穿透（空值缓存）+ 击穿（互斥锁，另实现逻辑过期方案对比）；SCAN 替代 KEYS 清缓存 | 已完成（2026-11-14） | 待压测 |
+| ✅ MQ 延迟消息 | 订单超时取消由 Spring Task 轮询改为 RabbitMQ 延迟插件消息，监听器查库幂等校验 | 已完成（2026-11-14） | — |
 | 🔲 容器化部署 | Docker Compose 一键部署 nginx + MySQL + Redis + 后端 | 计划中 | — |
 | 🔲 性能压测 | JMeter 对缓存改造前后接口压测对比 | 计划中 | — |
+
+> 各项改造的"为什么改、怎么改、原理对比"详见 [doc/改造说明.md](doc/改造说明.md)。

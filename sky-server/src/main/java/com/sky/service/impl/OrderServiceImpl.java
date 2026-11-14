@@ -5,6 +5,7 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
+import com.sky.config.RabbitMQConfiguration;
 import com.sky.constant.MessageConstant;
 import com.sky.context.BaseContext;
 import com.sky.dto.*;
@@ -23,6 +24,7 @@ import com.sky.vo.OrderSubmitVO;
 import com.sky.vo.OrderVO;
 import com.sky.websocket.WebSocketServer;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -47,6 +49,10 @@ public class OrderServiceImpl implements OrderService {
     @Value("${sky.baidu.ak}")
     private String ak;
 
+    /** 订单超时时长（秒）：本地测试 MQ 时可在 application-dev.yml 中改小（亮点改造②） */
+    @Value("${sky.order.delay-seconds:900}")
+    private Integer orderDelaySeconds;
+
     @Autowired
     private OrderMapper orderMapper;
     @Autowired
@@ -61,6 +67,8 @@ public class OrderServiceImpl implements OrderService {
     private WeChatPayUtil weChatPayUtil;
     @Autowired
     private WebSocketServer webSocketServer;
+    @Autowired
+    private RabbitTemplate rabbitTemplate;
 
     /**
      * 用户提交订单
@@ -117,6 +125,20 @@ public class OrderServiceImpl implements OrderService {
 
         // 清空购物车
         shoppingCartMapper.deleteByUserId(userId);
+
+        // 【改造②】发送订单延迟消息：替代原 OrderTask 每分钟轮询全表的方案。
+        // 下单成功后投递一条延迟消息（默认 15 分钟后到达），到点后由 OrderDelayListener 精准检查这一个订单，
+        // 没有超时风险时就不再有任何轮询开销。
+        // 注意：此处消息在事务提交前发出，若事务随后回滚，监听器会收到"幽灵消息"——
+        // 监听器内部查库校验状态可兜底跳过；严格的事务-消息一致性可用本地消息表/RocketMQ 事务消息解决（黑马课程会讲）。
+        rabbitTemplate.convertAndSend(RabbitMQConfiguration.ORDER_DELAY_EXCHANGE,
+                RabbitMQConfiguration.ORDER_DELAY_ROUTING_KEY,
+                orders.getId(),
+                message -> {
+                    // x-delay 头：延迟毫秒数，消息在延迟交换机内暂存，到期才路由到队列
+                    message.getMessageProperties().setDelay(orderDelaySeconds * 1000);
+                    return message;
+                });
 
         // 封装VO
         OrderSubmitVO orderSubmitVO = OrderSubmitVO.builder()

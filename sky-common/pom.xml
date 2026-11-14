@@ -49,5 +49,17 @@
             <groupId>com.github.wechatpay-apiv3</groupId>
             <artifactId>wechatpay-apache-httpclient</artifactId>
         </dependency>
+        <!-- 亮点改造①：CacheClient 需要 Redis 客户端（StringRedisTemplate/ScanOptions） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <!-- 亮点改造①：CacheClient 逻辑过期方案使用 pojo 模块的 RedisData 包装类
+             （sky-pojo 不依赖 sky-common，引入不会产生循环依赖） -->
+        <dependency>
+            <groupId>com.sky</groupId>
+            <artifactId>sky-pojo</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
     </dependencies>
 </project>
