@@ -15,6 +15,9 @@ public class RedisKeyConstant {
     /** C 端套餐缓存 key 前缀，完整 key 形如 cache:setmeal:16 */
     public static final String CACHE_SETMEAL_KEY = "cache:setmeal:";
 
+    /** 支付互斥锁 key 前缀（亮点改造③-b：支付幂等），完整 key 形如 lock:pay:101 */
+    public static final String LOCK_PAY_KEY = "lock:pay:";
+
     private RedisKeyConstant() {
     }
 }

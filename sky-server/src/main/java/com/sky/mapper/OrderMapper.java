@@ -5,6 +5,7 @@ import com.sky.dto.OrdersPageQueryDTO;
 import com.sky.entity.Orders;
 import com.sky.vo.SalesTop10ReportVO;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
@@ -34,6 +35,17 @@ public interface OrderMapper {
      * @param orders
      */
     void update(Orders orders);
+
+    /**
+     * 条件更新订单状态（亮点改造③-b：支付幂等）
+     * 仅当订单仍处于 pendingStatus 时才流转，利用数据库行级原子性保证并发/重复回调下的幂等
+     * @return 影响行数：0 表示订单状态已变更（幂等命中）
+     */
+    int updateStatusIfPending(@Param("id") Long id,
+                              @Param("pendingStatus") Integer pendingStatus,
+                              @Param("status") Integer status,
+                              @Param("payStatus") Integer payStatus,
+                              @Param("checkoutTime") LocalDateTime checkoutTime);
 
     /**
      * 分页条件查询并按下单时间排序

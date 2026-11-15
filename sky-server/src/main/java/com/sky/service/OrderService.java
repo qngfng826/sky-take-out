@@ -24,10 +24,11 @@ public interface OrderService {
     OrderPaymentVO payment(OrdersPaymentDTO ordersPaymentDTO) throws Exception;
 
     /**
-     * 支付成功，修改订单状态
+     * 支付成功，修改订单状态（亮点改造③-b：幂等化）
      * @param outTradeNo
+     * @return true=状态完成流转；false=幂等命中（订单不存在或状态已变更）
      */
-    void paySuccess(String outTradeNo);
+    boolean paySuccess(String outTradeNo);
 
     /**
      * 用户端订单分页查询

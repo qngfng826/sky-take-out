@@ -51,8 +51,9 @@ public class PayNotifyController {
         log.info("商户平台订单号：{}", outTradeNo);
         log.info("微信支付交易号：{}", transactionId);
 
-        //业务处理，修改订单状态、来单提醒
-        orderService.paySuccess(outTradeNo);
+        //业务处理，修改订单状态、来单提醒（亮点改造③-b：幂等——重复回调返回 false，仍正常应答微信避免重试风暴）
+        boolean first = orderService.paySuccess(outTradeNo);
+        log.info("支付回调处理结果：{}", first ? "首次处理，订单状态已流转" : "重复回调，幂等命中已忽略");
 
         //给微信响应
         responseToWeixin(response);

@@ -44,6 +44,14 @@
         where id = #{id}
     </update>
 
+    <!-- 亮点改造③-b：支付状态机条件更新——仅当订单仍为"待支付"才流转；
+         数据库行级原子操作保证并发/重复回调下的幂等（影响行数=0 即幂等命中） -->
+    <update id="updateStatusIfPending">
+        update orders
+        set status = #{status}, pay_status = #{payStatus}, checkout_time = #{checkoutTime}
+        where id = #{id} and status = #{pendingStatus}
+    </update>
+
     <select id="pageQuery" resultType="com.sky.entity.Orders">
         select * from orders
         <where>

@@ -255,13 +255,25 @@ public class CacheClient {
         }
     }
 
-    /** 互斥锁：setIfAbsent(key, value, ttl) 是 Redis 的 SET NX PX，原子操作 */
-    private boolean tryLock(String key) {
-        Boolean ok = stringRedisTemplate.opsForValue().setIfAbsent(key, "1", LOCK_TTL_SECONDS, TimeUnit.SECONDS);
+    /**
+     * 互斥锁：setIfAbsent(key, value, ttl) 是 Redis 的 SET NX PX，原子操作。
+     * 默认 TTL 版本供内部缓存重建使用（防击穿）。
+     */
+    public boolean tryLock(String key) {
+        return tryLock(key, LOCK_TTL_SECONDS);
+    }
+
+    /**
+     * 互斥锁（可指定 TTL）：亮点改造③-b 支付幂等以 30s TTL 复用本方法防止并发重复提交；
+     * TTL 兜底防止持锁方异常导致的死锁。
+     */
+    public boolean tryLock(String key, long ttlSeconds) {
+        Boolean ok = stringRedisTemplate.opsForValue().setIfAbsent(key, "1", ttlSeconds, TimeUnit.SECONDS);
         return Boolean.TRUE.equals(ok);
     }
 
-    private void unlock(String key) {
+    /** 释放互斥锁 */
+    public void unlock(String key) {
         stringRedisTemplate.delete(key);
     }
 }

@@ -7,6 +7,7 @@ import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.sky.config.RabbitMQConfiguration;
 import com.sky.constant.MessageConstant;
+import com.sky.constant.RedisKeyConstant;
 import com.sky.context.BaseContext;
 import com.sky.dto.*;
 import com.sky.entity.*;
@@ -16,6 +17,7 @@ import com.sky.exception.ShoppingCartBusinessException;
 import com.sky.mapper.*;
 import com.sky.result.PageResult;
 import com.sky.service.OrderService;
+import com.sky.utils.CacheClient;
 import com.sky.utils.HttpClientUtil;
 import com.sky.utils.WeChatPayUtil;
 import com.sky.vo.OrderPaymentVO;
@@ -69,6 +71,11 @@ public class OrderServiceImpl implements OrderService {
     private WebSocketServer webSocketServer;
     @Autowired
     private RabbitTemplate rabbitTemplate;
+    @Autowired
+    private CacheClient cacheClient;
+
+    /** 支付互斥锁 TTL（秒）：防并发重复提交，正常支付远快于该值（亮点改造③-b） */
+    private static final long PAY_LOCK_TTL_SECONDS = 30;
 
     /**
      * 用户提交订单
@@ -162,6 +169,25 @@ public class OrderServiceImpl implements OrderService {
         Long userId = BaseContext.getCurrentId();
         User user = userMapper.getById(userId);
 
+        // ===== 亮点改造③-b 第一层：前置校验——订单存在、归属当前用户、仍为"待支付" =====
+        Orders ordersDB = orderMapper.getByNumber(ordersPaymentDTO.getOrderNumber());
+        if (ordersDB == null) {
+            throw new OrderBusinessException("订单不存在");
+        }
+        if (!userId.equals(ordersDB.getUserId())) {
+            throw new OrderBusinessException("无权操作该订单");
+        }
+        if (!Orders.PENDING_PAYMENT.equals(ordersDB.getStatus())) {
+            throw new OrderBusinessException(Orders.CANCELLED.equals(ordersDB.getStatus())
+                    ? "订单已取消，无法支付" : "订单状态异常，无法支付");
+        }
+
+        // ===== 亮点改造③-b 第二层：Redis 互斥锁，防并发重复提交（前置校验本身存在并发窗口） =====
+        if (!cacheClient.tryLock(RedisKeyConstant.LOCK_PAY_KEY + ordersDB.getId(), PAY_LOCK_TTL_SECONDS)) {
+            throw new OrderBusinessException("支付处理中，请勿重复提交");
+        }
+
+        try {
 //        //调用微信支付接口，生成预支付交易单
 //        JSONObject jsonObject = weChatPayUtil.pay(
 //                ordersPaymentDTO.getOrderNumber(), //商户订单号
@@ -170,39 +196,49 @@ public class OrderServiceImpl implements OrderService {
 //                user.getOpenid() //微信用户的openid
 //        );
 
-        JSONObject jsonObject = new JSONObject();
+            JSONObject jsonObject = new JSONObject();
 
-        if (jsonObject.getString("code") != null && jsonObject.getString("code").equals("ORDERPAID")) {
-            throw new OrderBusinessException("该订单已支付");
+            if (jsonObject.getString("code") != null && jsonObject.getString("code").equals("ORDERPAID")) {
+                throw new OrderBusinessException("该订单已支付");
+            }
+
+            OrderPaymentVO vo = jsonObject.toJavaObject(OrderPaymentVO.class);
+            vo.setPackageStr(jsonObject.getString("package"));
+
+            // ===== 亮点改造③-b 第三层：paySuccess 内部以数据库条件更新（where status=待支付）原子流转，
+            // 返回 false 即幂等命中（并发对手已完成流转/状态已变更），向上抛出明确业务异常 =====
+            if (!paySuccess(ordersPaymentDTO.getOrderNumber())) {
+                throw new OrderBusinessException("订单状态已变更，请勿重复支付");
+            }
+
+            return vo;
+        } finally {
+            cacheClient.unlock(RedisKeyConstant.LOCK_PAY_KEY + ordersDB.getId());
         }
-
-        OrderPaymentVO vo = jsonObject.toJavaObject(OrderPaymentVO.class);
-        vo.setPackageStr(jsonObject.getString("package"));
-
-        paySuccess(ordersPaymentDTO.getOrderNumber());
-
-        return vo;
     }
 
     /**
-     * 支付成功，修改订单状态
+     * 支付成功，修改订单状态（亮点改造③-b：幂等化）
      *
      * @param outTradeNo
+     * @return true=状态完成流转并推送来单提醒；false=幂等命中（订单不存在或状态已变更），不重复处理
      */
-    public void paySuccess(String outTradeNo) {
+    public boolean paySuccess(String outTradeNo) {
 
         // 根据订单号查询订单
         Orders ordersDB = orderMapper.getByNumber(outTradeNo);
+        if (ordersDB == null) {
+            log.info("支付回调对应的订单不存在，outTradeNo={}，跳过处理", outTradeNo);
+            return false;
+        }
 
-        // 根据订单id更新订单的状态、支付方式、支付状态、结账时间
-        Orders orders = Orders.builder()
-                .id(ordersDB.getId())
-                .status(Orders.TO_BE_CONFIRMED)
-                .payStatus(Orders.PAID)
-                .checkoutTime(LocalDateTime.now())
-                .build();
-
-        orderMapper.update(orders);
+        // 第三层防护：数据库条件更新（where status=待支付），数据库行级原子性保证并发/重复回调下的幂等
+        int rows = orderMapper.updateStatusIfPending(ordersDB.getId(), Orders.PENDING_PAYMENT,
+                Orders.TO_BE_CONFIRMED, Orders.PAID, LocalDateTime.now());
+        if (rows == 0) {
+            log.info("订单{}状态已变更（当前 status={}），支付回调幂等命中，跳过重复处理", ordersDB.getId(), ordersDB.getStatus());
+            return false;
+        }
 
         //通过websocket向客户端浏览器推送消息 type orderId content
         Map map = new HashMap<>();
@@ -212,6 +248,7 @@ public class OrderServiceImpl implements OrderService {
 
         String json = JSON.toJSONString(map);
         webSocketServer.sendToAllClient(json);
+        return true;
     }
 
     /**
