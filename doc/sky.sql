@@ -156,7 +156,8 @@ CREATE TABLE `order_detail` (
   `dish_flavor` varchar(50) COLLATE utf8_bin DEFAULT NULL COMMENT '口味',
   `number` int NOT NULL DEFAULT '1' COMMENT '数量',
   `amount` decimal(10,2) NOT NULL COMMENT '金额',
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `idx_order_id_cover` (`order_id`,`name`,`number`) COMMENT '改造③-c: 覆盖索引，消除销量Top10回表'
 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin COMMENT='订单明细表';
 
 DROP TABLE IF EXISTS `orders`;
@@ -185,7 +186,9 @@ CREATE TABLE `orders` (
   `pack_amount` int DEFAULT NULL COMMENT '打包费',
   `tableware_number` int DEFAULT NULL COMMENT '餐具数量',
   `tableware_status` tinyint(1) NOT NULL DEFAULT '1' COMMENT '餐具数量状态  1按餐量提供  0选择具体数量',
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `idx_status_order_time` (`status`,`order_time`) COMMENT '改造③-c: 状态等值+日期范围（营业额/有效订单/Top10）',
+  KEY `idx_order_time` (`order_time`) COMMENT '改造③-c: 无状态条件的日期范围（订单总数/工作台）'
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin COMMENT='订单表';
 
 DROP TABLE IF EXISTS `setmeal`;
@@ -241,5 +244,6 @@ CREATE TABLE `user` (
   `id_number` varchar(18) COLLATE utf8_bin DEFAULT NULL COMMENT '身份证号',
   `avatar` varchar(500) COLLATE utf8_bin DEFAULT NULL COMMENT '头像',
   `create_time` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `idx_create_time` (`create_time`) COMMENT '改造③-c: 用户统计日期范围'
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin COMMENT='用户信息';

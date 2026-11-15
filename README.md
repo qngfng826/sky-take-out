@@ -200,5 +200,6 @@ sky:
 | ✅ MQ 延迟消息 | 订单超时取消由 Spring Task 轮询改为 RabbitMQ 延迟插件消息，监听器查库幂等校验 | 已完成（2026-11-14） | — |
 | ✅ 容器化部署 | Docker Compose 一键部署 nginx + MySQL + Redis + RabbitMQ（延迟插件）+ 后端 | 已完成（2026-11-14，见 [doc/部署说明.md](doc/部署说明.md)） | `docker compose up -d` 一键启动；改代码后 `up -d --build backend` 热更新 |
 | ✅ 性能压测 | JMeter 5.6.3 三组场景对比压测：基线（改造前课程代码容器化）vs CacheClient，MySQL general log 逐条取证 | 已完成（2026-11-15，方法与数据见 [doc/改造说明.md](doc/改造说明.md) §1.5） | 见"缓存三件套"行效果记录 |
+| ✅ 报表 SQL 优化 | EXPLAIN 驱动建索引：orders 双索引（status,order_time / order_time）+ order_detail 覆盖索引 + user 日期索引，固化进 doc/sky.sql | 已完成（2026-11-15，见 [doc/改造说明.md](doc/改造说明.md) §3） | 10w 级数据：报表查询全表扫描 9.9w 行 → 千行级 range，最高提速 40×；单列索引曾致 Q4 退化 75%，覆盖索引修正 |
 
 > 各项改造的"为什么改、怎么改、原理对比"详见 [doc/改造说明.md](doc/改造说明.md)。
