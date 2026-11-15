@@ -6,4 +6,6 @@
 **/test/
 sky-server/src/main/resources/application-dev.yml
 deploy/config/application-dev.yml
+doc/jmeter/*.jtl
+doc/jmeter/report-*/
 .mimosa
