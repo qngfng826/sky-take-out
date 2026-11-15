@@ -1,19 +1,19 @@
 self.__precacheManifest = [
   {
-    "revision": "24013d487a0256c7f73c",
+    "revision": "7765c7ec71cc277f65c8",
     "url": "css/404.6a750851.css"
   },
   {
-    "revision": "24013d487a0256c7f73c",
-    "url": "js/404.c61770cf.js"
+    "revision": "7765c7ec71cc277f65c8",
+    "url": "js/404.2da88fe3.js"
   },
   {
-    "revision": "51e829e56f213b57ca76",
-    "url": "css/app.fd9b670b.css"
+    "revision": "d2cea30cd400a097ff44",
+    "url": "css/app.ff2ef111.css"
   },
   {
-    "revision": "51e829e56f213b57ca76",
-    "url": "js/app.d0aa4eb3.js"
+    "revision": "d2cea30cd400a097ff44",
+    "url": "js/app.a65e8e3f.js"
   },
   {
     "revision": "7a3a7e33ab783cefaec7",
@@ -24,28 +24,28 @@ self.__precacheManifest = [
     "url": "js/chunk-vendors.9b7e46a0.js"
   },
   {
-    "revision": "355a63bba4e9f571e50b",
+    "revision": "e0078e5ac37ae1f06441",
     "url": "css/dashboard.8da8967e.css"
   },
   {
-    "revision": "355a63bba4e9f571e50b",
-    "url": "js/dashboard.630a609e.js"
+    "revision": "e0078e5ac37ae1f06441",
+    "url": "js/dashboard.cff027e9.js"
   },
   {
-    "revision": "d9b8ea589fcb23371fb5",
+    "revision": "d468838874c0980b349d",
     "url": "css/login.f8377ced.css"
   },
   {
-    "revision": "d9b8ea589fcb23371fb5",
-    "url": "js/login.90288d75.js"
+    "revision": "d468838874c0980b349d",
+    "url": "js/login.eacb12f5.js"
   },
   {
-    "revision": "6701dd7c295485717209",
-    "url": "css/shopTable.5fd29e98.css"
+    "revision": "c7f495e564161d888f20",
+    "url": "css/shopTable.71a24f8c.css"
   },
   {
-    "revision": "6701dd7c295485717209",
-    "url": "js/shopTable.fe534d8f.js"
+    "revision": "c7f495e564161d888f20",
+    "url": "js/shopTable.c20c68f7.js"
   },
   {
     "revision": "0f4bc32b0f52f7cfb7d19305a6517724",
@@ -76,8 +76,8 @@ self.__precacheManifest = [
     "url": "img/404.a57b6f31.png"
   },
   {
-    "revision": "38b01728209c82713206be752ed54b3a",
-    "url": "img/icon_logo.38b01728.png"
+    "revision": "be8d490a99a7c4e6a53bdd0f5621c968",
+    "url": "img/icon_logo.be8d490a.png"
   },
   {
     "revision": "6ef9d2601d2ec762577f90aa72ad97aa",
@@ -92,15 +92,15 @@ self.__precacheManifest = [
     "url": "img/logo.38b01728.png"
   },
   {
-    "revision": "bf141cfc2896c5eda967747dcee92776",
-    "url": "img/mini-logo.bf141cfc.png"
+    "revision": "4cfb574b62685f3103ff02e1d4145087",
+    "url": "img/mini-logo.4cfb574b.png"
   },
   {
     "revision": "0a3849af76d2bea914a0df06aa75d892",
     "url": "media/reminder.0a3849af.mp3"
   },
   {
-    "revision": "1a82643b8f1ab45ccdc52c0a678dc975",
+    "revision": "b6860946456a0b4c5382d98ee78488a8",
     "url": "index.html"
   },
   {
