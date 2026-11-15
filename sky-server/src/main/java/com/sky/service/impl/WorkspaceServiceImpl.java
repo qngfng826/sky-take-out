@@ -14,6 +14,8 @@ import com.sky.vo.SetmealOverViewVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.HashMap;
@@ -68,8 +70,11 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         if(totalOrderCount != 0 && validOrderCount != 0){
             //订单完成率
             orderCompletionRate = validOrderCount.doubleValue() / totalOrderCount;
-            //平均客单价
-            unitPrice = turnover / validOrderCount;
+            //平均客单价：保留 2 位小数（原始 double 除法会产生 112.41954239569314 这类长小数，
+            //工作台展示与 POI 报表导出均直接消费该值）
+            unitPrice = BigDecimal.valueOf(turnover)
+                    .divide(BigDecimal.valueOf(validOrderCount), 2, RoundingMode.HALF_UP)
+                    .doubleValue();
         }
 
         //新增用户数
